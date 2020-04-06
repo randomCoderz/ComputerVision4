@@ -19,8 +19,7 @@ def canny(image):
 def region_of_interest(image):
     mask = np.zeros_like(image)
     # Create a rectangle mask to cover pool table
-    # rectangle = np.array([[50, 500], [1500, 500], [1500, 1300], [50, 1300]])
-    rectangle = np.array([[800, 500], [1450, 500], [1500, 1150], [0, 900]])
+    rectangle = np.array([[850, 520], [1425, 550], [1350, 1020], [110, 905]])
     cv2.fillPoly(mask, [rectangle], 255)
     masked_image = cv2.bitwise_and(image, mask)
     return masked_image
@@ -32,12 +31,30 @@ if __name__ == '__main__':
     edges = canny(img)
     plt.imshow(edges)
     roi = region_of_interest(edges)
-    cv2.imwrite('test.jpg', roi)
-
+    dilation = cv2.dilate(roi, (5, 5), iterations=1)
+    cv2.imwrite('test.jpg', dilation)
     # Image, rho, theta, threshold
-    # lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 150, minLineLength=10, maxLineGap=50)
-    #
-    # for x1, y1, x2, y2 in lines[0]:
-    #     cv2.line(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-    #
-    # cv2.imwrite("linesDetected.jpg", img)
+    lines = cv2.HoughLinesP(dilation, 2, np.pi / 180, 340, minLineLength=450, maxLineGap=200)
+
+    line_image = img.copy()
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line.reshape(4)
+            cv2.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 3)
+
+    cv2.imwrite("linesDetected.jpg", line_image)
+
+    circle_image = img.copy()
+    circles = cv2.HoughCircles(dilation, cv2.HOUGH_GRADIENT, 1, 5, param1=50, param2=30, minRadius=0, maxRadius=0)
+
+    # ensure at least some circles were found
+    if circles is not None:
+        # convert the (x, y) coordinates and radius of the circles to integers
+        circles = np.round(circles[0, :]).astype("int")
+        # loop over the (x, y) coordinates and radius of the circles
+        for (x, y, r) in circles:
+            # corresponding to the center of the circle
+            cv2.circle(circle_image, (x, y), r, (0, 255, 0), 4)
+
+    cv2.imwrite("circle.jpg", circle_image)
+
