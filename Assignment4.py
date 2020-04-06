@@ -45,7 +45,10 @@ if __name__ == '__main__':
     cv2.imwrite("linesDetected.jpg", line_image)
 
     circle_image = img.copy()
-    circles = cv2.HoughCircles(dilation, cv2.HOUGH_GRADIENT, 1, 5, param1=50, param2=30, minRadius=0, maxRadius=0)
+    gray_circle = cv2.cvtColor(circle_image, cv2.COLOR_BGR2GRAY)
+    circle_roi = region_of_interest(gray_circle)
+    # 50, 30
+    circles = cv2.HoughCircles(circle_roi, cv2.HOUGH_GRADIENT, 1, 20, param1=95, param2=25, minRadius=7, maxRadius=180)
 
     # ensure at least some circles were found
     if circles is not None:
