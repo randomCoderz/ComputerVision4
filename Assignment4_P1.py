@@ -3,7 +3,7 @@ import numpy as np
 
 
 # Find the Gaussian pyramid of the two images and the mask
-def gaussian_pyramid(img, levels):
+def gauss_pyr(img, levels):
     lower = img.copy()
     gaussian_pyr = [lower]
     for i in range(levels):
@@ -14,10 +14,10 @@ def gaussian_pyramid(img, levels):
 
 # Then calculate the Laplacian pyramid
 def laplacian_pyramid(gaussian_pyr):
-    laplacian_top = gaussian_pyr[-1]
+    top_lapl = gaussian_pyr[-1]
     levels = len(gaussian_pyr) - 1
 
-    laplacian_pyr = [laplacian_top]
+    laplacian_pyr = [top_lapl]
     for i in range(levels, 0, -1):
         size = (gaussian_pyr[i - 1].shape[1], gaussian_pyr[i - 1].shape[0])
         gaussian_expanded = cv2.pyrUp(gaussian_pyr[i], dstsize=size)
@@ -27,24 +27,24 @@ def laplacian_pyramid(gaussian_pyr):
 
 
 # Now blend the two images wrt. the mask
-def blend(laplacian_A, laplacian_B, mask_pyr):
-    LS = []
-    for la, lb, mask in zip(laplacian_A, laplacian_B, mask_pyr):
-        ls = lb * mask + la * (1.0 - mask)
-        LS.append(ls)
-    return LS
+def blend(lapl_one, lapl_two, mask_pyr, mask_one):
+    blend_var = []
+    for la, lb, mask_one in zip(lapl_one, lapl_two, mask_pyr):
+        ls = lb * mask_one + la * (1.0 - mask_one)
+        blend_var.append(ls)
+    return blend_var
 
 
 # Reconstruct the original image
 def reconstruct(laplacian_pyr):
-    laplacian_top = laplacian_pyr[0]
-    laplacian_lst = [laplacian_top]
+    top_lapl = laplacian_pyr[0]
+    laplacian_lst = [top_lapl]
     levels = len(laplacian_pyr) - 1
     for i in range(levels):
         size = (laplacian_pyr[i + 1].shape[1], laplacian_pyr[i + 1].shape[0])
-        laplacian_expanded = cv2.pyrUp(laplacian_top, dstsize=size)
-        laplacian_top = cv2.add(laplacian_pyr[i + 1], laplacian_expanded)
-        laplacian_lst.append(laplacian_top)
+        laplacian_expanded = cv2.pyrUp(top_lapl, dstsize=size)
+        top_lapl = cv2.add(laplacian_pyr[i + 1], laplacian_expanded)
+        laplacian_lst.append(top_lapl)
     return laplacian_lst
 
 
@@ -57,26 +57,24 @@ if __name__ == '__main__':
 
     # Applying mask into binary image and then converting it to color
     mask = cv2.imread('img3.jpg', 0)
-    mask = cv2.bilateralFilter(mask, 9, 75, 75)
-    # Applying threshold to get true binary image
-    # ret is the optimal threshold value for using Otsu's thresholding
+    mask = cv2.GaussianBlur(mask, (13, 13), 1)
     ret, mask = cv2.threshold(mask, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
     mask = mask.astype('float32') / 255
 
-    lvls = 7
+    lvls = 5
 
     # For image-1, calculate Gaussian and Laplacian
-    gaussian_pyr_1 = gaussian_pyramid(img1, lvls)
-    laplacian_pyr_1 = laplacian_pyramid(gaussian_pyr_1)
+    g_pyr1 = gauss_pyr(img1, lvls)
+    lapl_pyr1 = laplacian_pyramid(g_pyr1)
     # For image-2, calculate Gaussian and Laplacian
-    gaussian_pyr_2 = gaussian_pyramid(img2, lvls)
-    laplacian_pyr_2 = laplacian_pyramid(gaussian_pyr_2)
+    g_pyr2 = gauss_pyr(img2, lvls)
+    lapl_pyr2 = laplacian_pyramid(g_pyr2)
     # Calculate the Gaussian pyramid for the mask image and reverse it.
-    mask_pyr_final = gaussian_pyramid(mask, lvls)
-    mask_pyr_final.reverse()
+    pyr_mask = gauss_pyr(mask, lvls)
+    pyr_mask.reverse()
     # Blend the images
-    add_laplace = blend(laplacian_pyr_1, laplacian_pyr_2, mask_pyr_final)
+    add_laplace = blend(lapl_pyr1, lapl_pyr2, pyr_mask, mask)
     # Reconstruct the images
     final = reconstruct(add_laplace)
 
